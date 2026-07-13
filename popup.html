@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>豆包助手</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <main class="app">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">Doubao Assistant</p>
+        <h1>豆包助手</h1>
+      </div>
+    </header>
+
+    <section id="dolaPanel" class="site-panel hidden">
+      <strong>Dola 素材助手已启用</strong>
+      <p>素材提取、ZIP 下载和 Seedance 增强会显示在 Dola 页面右下角。账号管理仅支持国内豆包。</p>
+    </section>
+
+    <div id="accountManager" class="account-manager">
+    <section id="currentAccountPanel" class="current-account">
+      <span class="current-label">当前使用</span>
+      <div id="currentAccountBody" class="current-body"></div>
+    </section>
+
+    <section id="pendingPanel" class="pending hidden">
+      <div>
+        <strong>添加账号进行中</strong>
+        <p>插件检测到登录态后会自动保存并关闭窗口。按钮仅作为兜底。</p>
+      </div>
+      <div class="row">
+        <button id="finishLoginBtn" class="primary" type="button">完成并保存</button>
+        <button id="cancelLoginBtn" type="button">取消恢复</button>
+      </div>
+    </section>
+
+    <section class="actions">
+      <button id="startLoginBtn" class="primary" type="button">添加账号</button>
+      <button id="saveCurrentBtn" type="button">保存当前账号</button>
+    </section>
+    <p class="action-warning">添加账号会退出当前豆包账号。若需要保留当前账号，请先点击“保存当前账号”。</p>
+
+    <section class="accounts-section">
+      <div class="section-title">
+        <span>账号列表</span>
+        <span id="countText">0 个</span>
+      </div>
+      <div id="accountList" class="account-list"></div>
+    </section>
+
+    <p id="statusText" class="status"></p>
+    </div>
+  </main>
+  <script src="popup.js"></script>
+</body>
+</html>

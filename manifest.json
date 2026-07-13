@@ -1,0 +1,54 @@
+{
+  "manifest_version": 3,
+  "name": "豆包助手",
+  "short_name": "豆包助手",
+  "version": "0.1.0",
+  "description": "豆包与 Dola 素材提取、Seedance 增强及豆包账号管理工具。",
+  "minimum_chrome_version": "111",
+  "permissions": [
+    "cookies",
+    "storage",
+    "tabs",
+    "scripting",
+    "windows",
+    "browsingData"
+  ],
+  "host_permissions": [
+    "https://www.doubao.com/*",
+    "https://*.doubao.com/*",
+    "https://www.dola.com/*",
+    "https://*.dola.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.doubao.com/chat/*",
+        "https://*.doubao.com/chat/*",
+        "https://www.dola.com/chat/*",
+        "https://*.dola.com/chat/*"
+      ],
+      "js": [
+        "doubao-assistant.js"
+      ],
+      "world": "MAIN",
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://www.doubao.com/*",
+        "https://*.doubao.com/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_title": "豆包助手",
+    "default_popup": "popup.html"
+  }
+}

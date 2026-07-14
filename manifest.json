@@ -2,8 +2,14 @@
   "manifest_version": 3,
   "name": "豆包助手",
   "short_name": "豆包助手",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "豆包与 Dola 素材提取、Seedance 增强及豆包账号管理工具。",
+  "icons": {
+    "16": "icon/favicon-16x16.png",
+    "32": "icon/favicon-32x32.png",
+    "48": "icon/favicon-48x48.png",
+    "128": "icon/favicon-128x128.png"
+  },
   "minimum_chrome_version": "111",
   "permissions": [
     "cookies",
@@ -30,25 +36,24 @@
         "https://www.dola.com/chat/*",
         "https://*.dola.com/chat/*"
       ],
-      "js": [
-        "doubao-assistant.js"
-      ],
+      "js": ["doubao-assistant.js"],
       "world": "MAIN",
       "run_at": "document_start"
     },
     {
-      "matches": [
-        "https://www.doubao.com/*",
-        "https://*.doubao.com/*"
-      ],
-      "js": [
-        "content.js"
-      ],
+      "matches": ["https://www.doubao.com/*", "https://*.doubao.com/*"],
+      "js": ["content.js"],
       "run_at": "document_idle"
     }
   ],
   "action": {
     "default_title": "豆包助手",
+    "default_icon": {
+      "16": "icon/favicon-16x16.png",
+      "32": "icon/favicon-32x32.png",
+      "48": "icon/favicon-48x48.png",
+      "128": "icon/favicon-128x128.png"
+    },
     "default_popup": "popup.html"
   }
 }

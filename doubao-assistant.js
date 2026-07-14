@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         豆包助手
 // @namespace    local.doubao.assistant
-// @version      0.1.0
+// @version      0.2.0
 // @description  豆包对话素材工作台，集成媒体提取、ZIP 打包下载和 Seedance 时长增强
 // @author       豆包助手
 // @match        https://www.doubao.com/chat/*
@@ -1607,6 +1607,7 @@ system:
 
     let initRetryCount = 0;
     const MAX_RETRY = 10;
+    const LAUNCHER_ICON_DATA_URL = 'data:image/png;base64,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';
 
     function createAssistantWorkspace() {
         if (document.getElementById('dba-workspace')) {
@@ -1636,13 +1637,17 @@ system:
             <style>
                 #dba-workspace, #dba-workspace * { box-sizing: border-box; letter-spacing: 0; }
                 #dba-launcher-host { position: fixed; right: 18px; bottom: 22px; z-index: 2147483645; }
-                #doubao-assistant-btn { position: relative; min-width: 126px; height: 46px; display: flex; align-items: center; gap: 9px; padding: 0 13px 0 11px; border: 1px solid #2459c4; border-radius: 8px; color: #fff; background: #3266d5; box-shadow: 0 10px 26px rgba(36, 89, 196, .32); cursor: pointer; font: 600 13px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+                #doubao-assistant-btn { position: relative; min-width: 142px; height: 52px; display: flex; align-items: center; gap: 10px; padding: 0 14px 0 8px; border: 1px solid #9bdc63; border-radius: 14px; color: #20261d; background: rgba(255, 253, 247, .96); box-shadow: 0 10px 30px rgba(91, 145, 55, .2); backdrop-filter: blur(10px); cursor: pointer; font: 600 13px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; transition: transform .22s cubic-bezier(.2, .8, .2, 1), box-shadow .22s ease, border-color .18s ease, background-color .18s ease; }
                 #doubao-assistant-btn[hidden] { display: none !important; }
-                #doubao-assistant-btn:hover { background: #2859bd; border-color: #204ca5; transform: translateY(-1px); }
+                #doubao-assistant-btn:hover { border-color: #7fc746; background: #fffef9; box-shadow: 0 13px 34px rgba(91, 145, 55, .28); transform: translateY(-2px); }
+                #doubao-assistant-btn:active { box-shadow: 0 7px 20px rgba(91, 145, 55, .2); transform: translateY(0) scale(.985); transition-duration: .1s; }
                 #doubao-assistant-btn svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+                .dba-launcher-icon { width: 36px; height: 36px; flex: none; display: grid; place-items: center; border-radius: 50%; background: #edf8e4; transition: transform .22s cubic-bezier(.2, .8, .2, 1), background-color .18s ease; }
+                #doubao-assistant-btn:hover .dba-launcher-icon { background: #e3f5d4; transform: scale(1.05); }
+                .dba-launcher-icon img { width: 25px; height: 25px; display: block; object-fit: contain; }
                 .dba-launcher-copy { display: grid; gap: 3px; text-align: left; }
                 .dba-launcher-name { white-space: nowrap; }
-                .dba-launcher-kind { color: rgba(255, 255, 255, .72); font-size: 9px; font-weight: 500; }
+                .dba-launcher-kind { color: #718268; font-size: 9px; font-weight: 500; white-space: nowrap; }
                 #dba-panel { position: fixed; z-index: 2147483644; top: 12px; right: 12px; bottom: 12px; width: min(404px, calc(100vw - 24px)); display: grid; grid-template-rows: auto auto auto minmax(0, 1fr) auto; overflow: hidden; border: 1px solid #d9dce2; border-radius: 8px; color: #202124; background: #fff; box-shadow: 0 18px 56px rgba(20, 24, 31, .22); font: 13px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; transform: translateX(calc(100% + 28px)); visibility: hidden; transition: transform .2s ease, visibility .2s; }
                 #dba-panel[data-open="true"] { transform: translateX(0); visibility: visible; }
                 .dba-head { min-height: 58px; display: flex; align-items: center; gap: 12px; padding: 0 14px 0 16px; border-bottom: 1px solid #e6e8ec; }
@@ -1680,6 +1685,7 @@ system:
                 .dba-topic-divider::after { content: ""; height: 1px; flex: 1; background: #dfe2e7; }
                 .dba-topic-title { max-width: 260px; overflow: hidden; font-size: 12px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
                 .dba-topic-count { flex: none; color: #858a93; font-size: 10px; }
+                .dba-topic-select { width: 18px; height: 18px; flex: none; accent-color: #3266d5; cursor: pointer; }
                 .dba-item { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 12px; min-height: 102px; margin-bottom: 8px; padding: 9px; border: 1px solid #e0e3e8; border-radius: 7px; background: #fff; }
                 .dba-item.selected { border-color: #9cb7ee; background: #f7faff; }
                 .dba-preview { position: relative; width: 112px; height: 84px; overflow: hidden; border-radius: 5px; background: #e9ebef; cursor: pointer; }
@@ -1693,6 +1699,7 @@ system:
                 .dba-actions { display: flex; align-items: center; gap: 5px; margin-top: auto; }
                 .dba-button { height: 30px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 0 9px; border: 1px solid #d8dbe1; border-radius: 5px; color: #4f555e; background: #fff; font: 500 11px/1 inherit; cursor: pointer; }
                 .dba-button:hover { color: #2459c4; border-color: #aabce1; background: #f5f8ff; }
+                .dba-button:disabled { opacity: .48; cursor: not-allowed; pointer-events: none; }
                 .dba-button.icon-only { width: 30px; padding: 0; }
                 .dba-select { width: 18px; height: 18px; margin-left: auto; accent-color: #3266d5; cursor: pointer; }
                 .dba-empty { height: 100%; min-height: 260px; display: grid; place-content: center; justify-items: center; color: #858a93; text-align: center; }
@@ -1703,7 +1710,12 @@ system:
                 .dba-foot-status { min-width: 0; flex: 1; color: #797e87; font-size: 11px; }
                 .dba-primary { color: #fff; border-color: #3266d5; background: #3266d5; }
                 .dba-primary:hover { color: #fff; border-color: #2858b9; background: #2858b9; }
-                .dba-primary.danger { border-color: #c53b32; background: #c53b32; }
+                .dba-operation-loading { position: absolute; z-index: 20; inset: 0; display: grid; place-content: center; justify-items: center; gap: 12px; color: #2857b8; background: rgba(255, 255, 255, .86); backdrop-filter: blur(3px); cursor: progress; }
+                .dba-operation-loading[hidden] { display: none; }
+                .dba-operation-loading svg { width: 30px; height: 30px; fill: none; stroke: currentColor; stroke-width: 1.8; animation: dba-spin .7s linear infinite; }
+                .dba-operation-loading span { font-size: 13px; font-weight: 650; }
+                .dba-toast { position: absolute; z-index: 30; top: 70px; left: 50%; max-width: calc(100% - 32px); padding: 9px 14px; border: 1px solid #b9dfa0; border-radius: 8px; color: #33452b; background: rgba(248, 253, 244, .98); box-shadow: 0 8px 24px rgba(51, 69, 43, .16); font-size: 12px; font-weight: 600; white-space: nowrap; opacity: 0; pointer-events: none; transform: translate(-50%, -8px); transition: opacity .18s ease, transform .2s cubic-bezier(.2, .8, .2, 1); }
+                .dba-toast.show { opacity: 1; transform: translate(-50%, 0); }
                 #dba-preview { position: fixed; z-index: 2147483647; inset: 0; display: none; place-items: center; padding: 24px; background: rgba(10, 12, 16, .88); cursor: zoom-out; }
                 #dba-preview.show { display: grid; }
                 #dba-preview img { max-width: 100%; max-height: 100%; object-fit: contain; }
@@ -1711,8 +1723,8 @@ system:
             </style>
             <div id="dba-launcher-host">
                 <button id="doubao-assistant-btn" type="button" aria-label="打开豆包助手" title="打开豆包助手插件">
-                    ${icon('library')}
-                    <span class="dba-launcher-copy"><span class="dba-launcher-name">豆包助手</span><span class="dba-launcher-kind">浏览器插件</span></span>
+                    <span class="dba-launcher-icon"><img src="${LAUNCHER_ICON_DATA_URL}" alt=""></span>
+                    <span class="dba-launcher-copy"><span class="dba-launcher-name">豆包助手</span></span>
                 </button>
             </div>
             <aside id="dba-panel" data-open="false" aria-label="豆包助手工作台">
@@ -1737,8 +1749,11 @@ system:
                 <footer class="dba-foot">
                     <div class="dba-foot-status">未选择素材</div>
                     <button class="dba-button" data-action="select-all">全选</button>
-                    <button class="dba-button dba-primary" data-action="batch">${icon('archive')} 打包下载</button>
+                    <button class="dba-button" data-action="multi-download" disabled>${icon('download')} 批量下载</button>
+                    <button class="dba-button dba-primary" data-action="batch" disabled>${icon('archive')} 打包下载</button>
                 </footer>
+                <div class="dba-operation-loading" hidden aria-live="polite" aria-busy="true">${icon('refresh')}<span>正在下载...</span></div>
+                <div class="dba-toast" role="status" aria-live="polite"></div>
             </aside>
             <div id="dba-preview"><img alt="图片预览"></div>
         `;
@@ -1748,13 +1763,14 @@ system:
         const panel = root.querySelector('#dba-panel');
         const list = root.querySelector('.dba-list');
         const status = root.querySelector('.dba-foot-status');
+        const operationLoading = root.querySelector('.dba-operation-loading');
+        const toast = root.querySelector('.dba-toast');
         const preview = root.querySelector('#dba-preview');
         let activeTab = 'image';
         let images = [];
         let videos = [];
         let downloading = false;
-        let cancelRequested = false;
-        let activeTask = null;
+        let toastTimer = null;
 
         const escapeAttr = (value) => String(value ?? '')
             .replace(/&/g, '&amp;').replace(/"/g, '&quot;')
@@ -1762,11 +1778,27 @@ system:
 
         const getItems = (type = activeTab) => type === 'image' ? images : videos;
         const selectedInputs = () => [...list.querySelectorAll('.dba-select:checked')];
-        const updateSelection = () => {
+        const showToast = (message) => {
+            if (toastTimer) clearTimeout(toastTimer);
+            toast.textContent = message;
+            toast.classList.add('show');
+            toastTimer = setTimeout(() => toast.classList.remove('show'), 1800);
+        };
+        const updateSelection = (message = '') => {
             const count = selectedInputs().length;
-            status.textContent = count ? `已选择 ${count} 项${downloading ? ' · 正在打包' : ''}` : (downloading ? '正在打包' : '未选择素材');
+            const multiButton = root.querySelector('[data-action="multi-download"]');
+            const batchButton = root.querySelector('[data-action="batch"]');
+            multiButton.disabled = downloading || count < 2;
+            batchButton.disabled = downloading || count < 2;
+            status.textContent = message || (count ? `已选择 ${count} 项` : '未选择素材');
             list.querySelectorAll('.dba-item').forEach(item => {
                 item.classList.toggle('selected', Boolean(item.querySelector('.dba-select:checked')));
+            });
+            list.querySelectorAll('.dba-topic-select').forEach(topicInput => {
+                const topicInputs = [...list.querySelectorAll(`.dba-item[data-topic-number="${topicInput.dataset.topicNumber}"] .dba-select`)];
+                const selectedCount = topicInputs.filter(input => input.checked).length;
+                topicInput.checked = topicInputs.length > 0 && selectedCount === topicInputs.length;
+                topicInput.indeterminate = selectedCount > 0 && selectedCount < topicInputs.length;
             });
         };
 
@@ -1807,9 +1839,9 @@ system:
                     || (displayItems[displayIndex - 1]?.media.topicId || 'uncategorized') !== topicId;
                 const topicCount = isNewTopic ? items.filter(item => (item.topicId || 'uncategorized') === topicId).length : 0;
                 const topicHeader = isNewTopic
-                    ? `<div class="dba-topic-divider"><span class="dba-topic-title">话题 ${topicNumber} · ${escapeAttr(media.topicTitle || '未分类话题')}</span><span class="dba-topic-count">${topicCount} 项</span></div>`
+                    ? `<div class="dba-topic-divider"><span class="dba-topic-title">话题 ${topicNumber} · ${escapeAttr(media.topicTitle || '未分类话题')}</span><span class="dba-topic-count">${topicCount} 项</span><input class="dba-topic-select" type="checkbox" data-topic-number="${topicNumber}" aria-label="选择话题 ${topicNumber} 的全部素材"></div>`
                     : '';
-                return `${topicHeader}<article class="dba-item" data-index="${index}">
+                return `${topicHeader}<article class="dba-item" data-index="${index}" data-topic-number="${topicNumber}">
                     <div class="dba-preview" data-action="preview" data-index="${index}">
                         ${previewUrl
                             ? `<img src="${previewUrl}" alt="${isImage ? '图片' : '视频封面'} ${index + 1}" loading="lazy" decoding="async" referrerpolicy="no-referrer">`
@@ -2005,37 +2037,74 @@ system:
             setTimeout(() => { button.disabled = false; button.textContent = '发送提示词'; }, 1300);
         };
 
-        const runBatch = async (button) => {
-            if (downloading) {
-                cancelRequested = true;
-                activeTask?.abort();
-                return;
-            }
-            const indexes = selectedInputs().map(input => Number(input.dataset.index));
-            if (!indexes.length) {
-                status.textContent = '请先选择要下载的素材';
-                return;
-            }
+        const beginDownloadOperation = (message) => {
+            if (downloading) return false;
             downloading = true;
-            cancelRequested = false;
-            button.classList.add('danger');
-            button.textContent = '取消打包';
-            updateSelection();
+            operationLoading.querySelector('span').textContent = message;
+            operationLoading.hidden = false;
+            panel.setAttribute('aria-busy', 'true');
+            updateSelection(message);
+            return true;
+        };
 
-            const controller = new AbortController();
-            activeTask = { abort: () => controller.abort() };
-            const archiveEntries = [];
+        const finishDownloadOperation = (message) => {
+            downloading = false;
+            operationLoading.hidden = true;
+            panel.removeAttribute('aria-busy');
+            updateSelection(message);
+        };
+
+        const getSelectedIndexes = () => selectedInputs().map(input => Number(input.dataset.index));
+
+        const runMultiDownload = async () => {
+            const indexes = getSelectedIndexes();
+            if (indexes.length < 2 || !beginDownloadOperation('正在准备批量下载...')) return;
+            const operationType = activeTab;
+            const operationItems = getItems(operationType);
+
+            let completed = 0;
+            let resultMessage = '';
             try {
                 for (let position = 0; position < indexes.length; position++) {
-                    if (cancelRequested) break;
                     const index = indexes[position];
-                    const media = getItems()[index];
+                    const media = operationItems[index];
                     if (!media) continue;
-                    status.textContent = `正在读取 ${position + 1}/${indexes.length}`;
-                    const blob = await fetchMediaBlob(media.url, controller.signal);
+                    operationLoading.querySelector('span').textContent = `正在下载 ${position + 1}/${indexes.length}`;
+                    const task = createDownloadTask(media.url, getDownloadFilename(
+                        operationType,
+                        index,
+                        media.url,
+                        media.topicNumber,
+                        media.topicItemNumber
+                    ));
+                    await task.promise;
+                    completed++;
+                }
+            } catch (error) {
+                resultMessage = '批量下载失败，请稍后重试';
+            }
+
+            finishDownloadOperation(resultMessage || `已下载 ${completed} 项素材`);
+        };
+
+        const runBatch = async () => {
+            const indexes = getSelectedIndexes();
+            if (indexes.length < 2 || !beginDownloadOperation('正在准备打包...')) return;
+            const operationType = activeTab;
+            const operationItems = getItems(operationType);
+
+            const archiveEntries = [];
+            let resultMessage = '';
+            try {
+                for (let position = 0; position < indexes.length; position++) {
+                    const index = indexes[position];
+                    const media = operationItems[index];
+                    if (!media) continue;
+                    operationLoading.querySelector('span').textContent = `正在读取 ${position + 1}/${indexes.length}`;
+                    const blob = await fetchMediaBlob(media.url);
                     archiveEntries.push({
                         name: getDownloadFilename(
-                            activeTab,
+                            operationType,
                             index,
                             media.url,
                             media.topicNumber,
@@ -2045,25 +2114,19 @@ system:
                     });
                 }
 
-                if (!cancelRequested && archiveEntries.length) {
-                    status.textContent = '正在生成 ZIP 压缩包...';
+                if (archiveEntries.length) {
+                    operationLoading.querySelector('span').textContent = '正在生成 ZIP 压缩包...';
                     await new Promise(resolve => requestAnimationFrame(resolve));
                     const zipBlob = createZipArchive(archiveEntries);
                     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-                    downloadBlob(zipBlob, `doubao_${activeTab}_${timestamp}.zip`);
-                    status.textContent = `已打包 ${archiveEntries.length} 项素材`;
+                    downloadBlob(zipBlob, `doubao_${operationType}_${timestamp}.zip`);
+                    resultMessage = `已打包 ${archiveEntries.length} 项素材`;
                 }
             } catch (error) {
-                if (!cancelRequested && error?.name !== 'AbortError') {
-                    status.textContent = '打包失败，请稍后重试';
-                }
+                resultMessage = '打包失败，请稍后重试';
             }
 
-            activeTask = null;
-            downloading = false;
-            button.classList.remove('danger');
-            button.innerHTML = `${icon('archive')} 打包下载`;
-            if (cancelRequested) status.textContent = '已取消打包';
+            finishDownloadOperation(resultMessage || `已打包 ${archiveEntries.length} 项素材`);
         };
 
         const closeWorkspace = () => {
@@ -2086,6 +2149,13 @@ system:
             closeWorkspace();
         });
         list.addEventListener('change', event => {
+            if (event.target.matches('.dba-topic-select')) {
+                const topicNumber = event.target.dataset.topicNumber;
+                list.querySelectorAll(`.dba-item[data-topic-number="${topicNumber}"] .dba-select`)
+                    .forEach(input => { input.checked = event.target.checked; });
+                updateSelection();
+                return;
+            }
             if (event.target.matches('.dba-select')) updateSelection();
         });
         root.addEventListener('click', async event => {
@@ -2123,7 +2193,8 @@ system:
                 target.textContent = shouldSelect ? '取消全选' : '全选';
                 updateSelection();
             }
-            if (action === 'batch') await runBatch(target);
+            if (action === 'multi-download') await runMultiDownload();
+            if (action === 'batch') await runBatch();
             if (action === 'preview') {
                 const media = getItems()[Number(target.dataset.index)];
                 if (!media) return;
@@ -2140,13 +2211,18 @@ system:
             if (action === 'download') {
                 const index = Number(target.dataset.index);
                 const media = getItems()[index];
-                if (media && await downloadImage(media.url, getDownloadFilename(
-                    activeTab,
-                    index,
-                    media.url,
-                    media.topicNumber,
-                    media.topicItemNumber
-                ))) notifyButton(target, '已下载');
+                if (media) {
+                    const message = `已开始下载${activeTab === 'image' ? '图片' : '视频'} ${media.topicItemNumber || index + 1}`;
+                    status.textContent = message;
+                    showToast(message);
+                    await downloadImage(media.url, getDownloadFilename(
+                        activeTab,
+                        index,
+                        media.url,
+                        media.topicNumber,
+                        media.topicItemNumber
+                    ));
+                }
             }
             if (action === 'copy') {
                 const media = getItems()[Number(target.dataset.index)];

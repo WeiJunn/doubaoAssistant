@@ -147,7 +147,23 @@ system:
     loadSeedanceDurationConfig();
 
     function normalizeImageUrl(url) {
-        return typeof url === 'string' ? url.replace(/&amp;/g, '&') : '';
+        if (typeof url !== 'string') return '';
+
+        const normalizedUrl = url.replace(/&amp;/g, '&');
+        if (pageWindow.location.protocol !== 'https:' || !normalizedUrl.startsWith('http://')) {
+            return normalizedUrl;
+        }
+
+        try {
+            const parsedUrl = new URL(normalizedUrl);
+            if (isDoubaoHost(parsedUrl.hostname)) {
+                parsedUrl.protocol = 'https:';
+                return parsedUrl.href;
+            }
+        } catch (error) {
+            // Keep malformed or non-standard URLs unchanged for existing fallback handling.
+        }
+        return normalizedUrl;
     }
 
     function findConversationField(value, keys, depth = 0, seen = new Set()) {
@@ -1170,6 +1186,7 @@ system:
     }
 
     function createDownloadTask(url, filename) {
+        const downloadUrl = normalizeImageUrl(url);
         let settled = false;
         let rejectDownload = null;
         let abortDownload = null;
@@ -1192,7 +1209,7 @@ system:
             if (typeof GM_download === 'function') {
                 try {
                     const download = GM_download({
-                        url,
+                        url: downloadUrl,
                         name: filename,
                         saveAs: false,
                         onload: finish,
@@ -1212,7 +1229,7 @@ system:
             const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
             abortDownload = () => controller?.abort();
 
-            fetch(url, { signal: controller?.signal })
+            fetch(downloadUrl, { signal: controller?.signal })
                 .then(response => response.blob())
                 .then(blob => {
                     const blobUrl = URL.createObjectURL(blob);
@@ -1269,11 +1286,12 @@ system:
     }
 
     function fetchMediaBlob(url, signal) {
+        const mediaUrl = normalizeImageUrl(url);
         if (typeof GM_xmlhttpRequest === 'function') {
             return new Promise((resolve, reject) => {
                 const request = GM_xmlhttpRequest({
                     method: 'GET',
-                    url,
+                    url: mediaUrl,
                     responseType: 'blob',
                     onload: response => {
                         if (response.status >= 200 && response.status < 300 && response.response) {
@@ -1292,7 +1310,7 @@ system:
             });
         }
 
-        return fetch(url, { signal }).then(response => {
+        return fetch(mediaUrl, { signal }).then(response => {
             if (!response.ok) throw new Error(`素材请求失败: ${response.status}`);
             return response.blob();
         });

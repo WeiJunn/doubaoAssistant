@@ -1,11 +1,13 @@
 // ==UserScript==
 // @name         豆包助手
 // @namespace    local.doubao.assistant
-// @version      0.2.0
+// @version      0.2.1
 // @description  豆包对话素材工作台，集成媒体提取、ZIP 打包下载和 Seedance 时长增强
 // @author       豆包助手
 // @match        https://www.doubao.com/chat/*
+// @match        https://www.doubao.com/thread/*
 // @match        https://www.dola.com/chat/*
+// @match        https://www.dola.com/thread/*
 // @grant        GM_download
 // @grant        GM_xmlhttpRequest
 // @grant        GM_openInTab
@@ -32,13 +34,21 @@
     const chatVideoVidIndex = new Set();
     const processedFallbackApis = new Set();
     const fallbackVideoPosterIndex = new Map();
+    const pendingFallbackVideoRequests = new Set();
+    const fallbackVideoFailures = new Map();
+    const VIDEO_REQUEST_TIMEOUT = 12000;
+    const VIDEO_REQUEST_RETRY_COUNT = 1;
+    let detectedFallbackVideoCount = 0;
+    let currentSharePageInfo = null;
+    let currentSharePagePayload = null;
+    let mediaProgressReporter = null;
 
-    const SEEDANCE_DURATION_ENABLED_KEY = 'doubao-assistant-seedance-enabled';
-    const SEEDANCE_DURATION_VALUE_KEY = 'doubao-assistant-seedance-duration';
     const QAAB_SALT_HEX = '4dd4c2e6b83162090e52b3c7a6733ba4'
         + '1cb2462b829ab58a196b39db57177524'
         + 'f49baf7f08e8d68d26a72e37c1a95a2f'
         + '1f05a51892aef2949732b62a38aadd58';
+    const SEEDANCE_DURATION_ENABLED_KEY = 'doubao-assistant-seedance-enabled';
+    const SEEDANCE_DURATION_VALUE_KEY = 'doubao-assistant-seedance-duration';
     const VALID_SEEDANCE_DURATIONS = new Set([5, 10, 15]);
     const SEEDANCE_SYSTEM_PROMPT_MARKER = '## 15 秒视频生成规则';
     const SEEDANCE_SYSTEM_PROMPT = `${SEEDANCE_SYSTEM_PROMPT_MARKER}
@@ -143,8 +153,6 @@ system:
         } catch (error) {
         }
     }
-
-    loadSeedanceDurationConfig();
 
     function normalizeImageUrl(url) {
         if (typeof url !== 'string') return '';
@@ -641,20 +649,36 @@ system:
     function processDoubaoFallbackVideos(json, rawBody = '', topic = currentTopicContext, posterUrl = '') {
         const fallbackApis = findDoubaoFallbackApis(json, rawBody);
         if (!fallbackApis.length) return;
+        detectedFallbackVideoCount += fallbackApis.length;
         removeLegacyDoubaoVideos();
         for (const fallbackApi of fallbackApis) {
             if (posterUrl) fallbackVideoPosterIndex.set(fallbackApi, posterUrl);
             if (processedFallbackApis.has(fallbackApi)) continue;
             processedFallbackApis.add(fallbackApi);
 
-            getDoubaoVideoInfoFromFallbackApi(fallbackApi)
+            const request = getDoubaoVideoInfoFromFallbackApi(fallbackApi)
                 .then(info => {
                     if (info && !info.poster_url) {
                         info.poster_url = fallbackVideoPosterIndex.get(fallbackApi) || '';
                     }
+                    fallbackVideoFailures.delete(fallbackApi);
                     addChatVideo(info, topic);
                 })
-                .catch(() => { });
+                .catch(error => {
+                    fallbackVideoFailures.set(fallbackApi, error);
+                    processedFallbackApis.delete(fallbackApi);
+                })
+                .finally(() => pendingFallbackVideoRequests.delete(request));
+            pendingFallbackVideoRequests.add(request);
+        }
+        mediaProgressReporter?.(`正在解析无水印视频（${pendingFallbackVideoRequests.size} 项）...`);
+    }
+
+    loadSeedanceDurationConfig();
+
+    async function waitForFallbackVideos() {
+        while (pendingFallbackVideoRequests.size) {
+            await Promise.allSettled([...pendingFallbackVideoRequests]);
         }
     }
 
@@ -665,16 +689,29 @@ system:
             logo_type: 'unwatermarked',
         });
 
-        const payload = await requestJson(apiUrl);
+        let payload;
+        let lastError;
+        for (let attempt = 0; attempt <= VIDEO_REQUEST_RETRY_COUNT; attempt++) {
+            try {
+                payload = await requestJson(apiUrl, VIDEO_REQUEST_TIMEOUT);
+                break;
+            } catch (error) {
+                lastError = error;
+                if (attempt >= VIDEO_REQUEST_RETRY_COUNT) throw error;
+                mediaProgressReporter?.('视频解析超时，正在自动重试...');
+                await new Promise(resolve => setTimeout(resolve, 450));
+            }
+        }
+        if (!payload) throw lastError || new Error('视频信息为空');
         const data = getVideoData(payload);
         const picked = pickMainUrlEntry(data);
         if (!picked?.token) {
-            return null;
+            throw new Error('未找到视频播放信息');
         }
 
         const videoUrl = await decodeMainUrl(picked.token, findKeySeedDeep(payload));
         if (!videoUrl) {
-            return null;
+            throw new Error('视频地址解码失败');
         }
 
         const meta = picked.entry || {};
@@ -698,7 +735,7 @@ system:
         chatVideos = nextVideos;
     }
 
-    function requestJson(url) {
+    function requestJson(url, timeout = VIDEO_REQUEST_TIMEOUT) {
         return new Promise((resolve, reject) => {
             if (typeof GM_xmlhttpRequest === 'function') {
                 GM_xmlhttpRequest({
@@ -707,6 +744,7 @@ system:
                     headers: {
                         accept: 'application/json,text/plain,*/*',
                     },
+                    timeout,
                     onload: (response) => {
                         if (response.status < 200 || response.status >= 300) {
                             reject(new Error(`请求失败: ${response.status}`));
@@ -720,21 +758,28 @@ system:
                         }
                     },
                     onerror: () => reject(new Error('请求失败')),
-                    ontimeout: () => reject(new Error('请求超时')),
+                    ontimeout: () => reject(new Error('视频接口请求超时')),
                 });
                 return;
             }
 
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), timeout);
             originalFetch.call(pageWindow, url, {
                 method: 'GET',
                 credentials: 'omit',
+                signal: controller.signal,
                 headers: {
                     accept: 'application/json,text/plain,*/*',
                 },
             })
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) throw new Error(`视频接口请求失败: ${response.status}`);
+                    return response.json();
+                })
                 .then(resolve)
-                .catch(reject);
+                .catch(error => reject(error?.name === 'AbortError' ? new Error('视频接口请求超时') : error))
+                .finally(() => clearTimeout(timeoutId));
         });
     }
 
@@ -1069,7 +1114,7 @@ system:
         } catch (e) { }
     }
 
-    function extractSharePageImages() {
+    function extractSharePageImages(routerDataOverride = null) {
         try {
             const imageList = [];
             const imageUrlIndex = new Set();
@@ -1130,9 +1175,37 @@ system:
                 }
             };
 
+            const parseSharePayload = (payload) => {
+                if (!payload || typeof payload !== 'object') return;
+                const shareInfo = payload?.data?.share_info || payload?.share_info;
+                const messageSnapshot = payload?.data?.message_snapshot?.message_list;
+                if (!shareInfo && !Array.isArray(messageSnapshot)) return;
+                currentSharePagePayload = payload;
+                const shareId = shareInfo?.share_id || getConversationRouteId();
+                const shareTitle = String(shareInfo?.share_name || getPageConversationTitle() || '').trim();
+                const shareTopic = {
+                    id: `conversation-${shareId}`,
+                    title: shareTitle || `对话 ${String(shareId).slice(-8)}`,
+                    isFallback: !shareTitle
+                };
+                currentTopicContext = shareTopic;
+                currentSharePageInfo = shareInfo ? {
+                    id: shareId,
+                    title: shareTitle || shareTopic.title,
+                    author: String(shareInfo?.user?.nick_name || '').trim(),
+                    avatar: normalizeImageUrl(shareInfo?.user?.image?.tiny_url || shareInfo?.user?.image?.origin_url || ''),
+                    sharedAt: Number(shareInfo?.share_time || 0),
+                    status: shareInfo?.share_status,
+                    messageCount: messageSnapshot?.length || 0
+                } : null;
+                const rawPayload = safeJsonStringify(payload);
+                processDoubaoFallbackVideos(payload, rawPayload, shareTopic);
+                parseMessageSnapshot(messageSnapshot);
+            };
+
             const parseRouterDataItem = (data) => {
                 if (typeof data === 'object' && data?.data?.message_snapshot?.message_list) {
-                    parseMessageSnapshot(data.data.message_snapshot.message_list);
+                    parseSharePayload(data);
                     return;
                 }
 
@@ -1143,9 +1216,14 @@ system:
                     const routerData = typeof routerDataFnArg === 'string'
                         ? JSON.parse(routerDataFnArg)
                         : routerDataFnArg;
-                    parseMessageSnapshot(routerData?.data?.message_snapshot?.message_list);
+                    parseSharePayload(routerData);
                 }
             };
+
+            if (routerDataOverride) {
+                parseRouterDataItem(routerDataOverride);
+                return imageList;
+            }
 
             const scriptElement = document.querySelector(
                 'script[data-script-src="modern-run-router-data-fn"], script[data-script-src="modern-run-window-fn"][data-fn-name="mergeLoaderData"]'
@@ -1155,7 +1233,6 @@ system:
                 if (dataFnArgs) {
                     const jsonStr = dataFnArgs.replace(/&quot;/g, '"');
                     const jsonData = JSON.parse(jsonStr);
-                    processDoubaoFallbackVideos(jsonData, jsonStr);
 
                     for (const data of jsonData) {
                         parseRouterDataItem(data);
@@ -1183,6 +1260,54 @@ system:
 
     function extractVideos() {
         return chatVideos;
+    }
+
+    function promiseWithTimeout(promise, timeout, message) {
+        let timeoutId;
+        return Promise.race([
+            Promise.resolve(promise),
+            new Promise((_, reject) => {
+                timeoutId = setTimeout(() => reject(new Error(message)), timeout);
+            })
+        ]).finally(() => clearTimeout(timeoutId));
+    }
+
+    async function extractSharePageMedia(onProgress = null) {
+        mediaProgressReporter = onProgress;
+        detectedFallbackVideoCount = 0;
+        fallbackVideoFailures.clear();
+        processedFallbackApis.clear();
+        chatVideos = [];
+        chatVideoUrlIndex.clear();
+        chatVideoVidIndex.clear();
+        currentSharePageInfo = null;
+        onProgress?.('正在读取分享内容...');
+        const loaderData = pageWindow._ROUTER_DATA?.loaderData || {};
+        let shareInfo = Object.values(loaderData)
+            .map(routeData => routeData?.shareInfo)
+            .find(value => value && (typeof value.then === 'function' || typeof value === 'object'));
+        if (shareInfo && typeof shareInfo.then === 'function') {
+            shareInfo = await promiseWithTimeout(shareInfo, 15000, '读取分享内容超时');
+        }
+        if (!shareInfo || (!shareInfo?.data?.message_snapshot && !shareInfo?.message_snapshot)) {
+            shareInfo = currentSharePagePayload;
+        }
+
+        onProgress?.('正在解析分享媒体...');
+        const images = shareInfo ? extractSharePageImages(shareInfo) : extractSharePageImages();
+        if (!currentSharePageInfo) {
+            mediaProgressReporter = null;
+            throw new Error('分享内容不可用，可能已失效或被取消');
+        }
+        replaceChatImages(images);
+        await waitForFallbackVideos();
+        mediaProgressReporter = null;
+        return {
+            images,
+            shareInfo: currentSharePageInfo,
+            detectedVideoCount: detectedFallbackVideoCount,
+            failedVideoCount: fallbackVideoFailures.size
+        };
     }
 
     function createDownloadTask(url, filename) {
@@ -1613,6 +1738,7 @@ system:
         if (document.getElementById('dba-workspace')) {
             return;
         }
+        const isThreadPage = pageWindow.location.pathname.includes('/thread/');
 
         const icon = (name) => {
             const paths = {
@@ -1660,6 +1786,13 @@ system:
                 @keyframes dba-spin { to { transform: rotate(360deg); } }
                 .dba-icon-btn svg, .dba-button svg, .dba-tab svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
                 .dba-seedance { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; min-height: 52px; padding: 8px 14px; border-bottom: 1px solid #e6e8ec; background: #fafbfc; }
+                .dba-seedance[hidden] { display: none; }
+                .dba-share-info { display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 10px; align-items: center; min-height: 64px; padding: 10px 14px; border-bottom: 1px solid #e6e8ec; background: linear-gradient(135deg, #f7faf4, #fbfcfd); }
+                .dba-share-info[hidden] { display: none; }
+                .dba-share-avatar { width: 36px; height: 36px; display: grid; place-items: center; overflow: hidden; border: 1px solid #dfe5dc; border-radius: 50%; color: #66805b; background: #eaf3e5; font-size: 15px; font-weight: 700; }
+                .dba-share-avatar img { width: 100%; height: 100%; object-fit: cover; }
+                .dba-share-title { overflow: hidden; color: #252a24; font-size: 13px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+                .dba-share-meta { margin-top: 3px; overflow: hidden; color: #7a8178; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
                 .dba-seedance-label { display: flex; align-items: center; gap: 6px; font-weight: 600; white-space: nowrap; }
                 .dba-seedance-label svg { width: 15px; height: 15px; fill: none; stroke: #3266d5; stroke-width: 1.8; }
                 .dba-toggle { display: inline-flex; align-items: center; gap: 7px; color: #686e77; font-size: 11px; cursor: pointer; }
@@ -1706,6 +1839,7 @@ system:
                 .dba-empty svg { width: 34px; height: 34px; margin-bottom: 10px; fill: none; stroke: #a6abb3; stroke-width: 1.4; }
                 .dba-empty strong { color: #555b64; font-size: 13px; }
                 .dba-empty span { margin-top: 4px; font-size: 11px; }
+                .dba-empty-loading svg { animation: dba-spin .7s linear infinite; }
                 .dba-foot { min-height: 54px; display: flex; align-items: center; gap: 7px; padding: 10px 12px; border-top: 1px solid #e3e5e9; background: #fff; }
                 .dba-foot-status { min-width: 0; flex: 1; color: #797e87; font-size: 11px; }
                 .dba-primary { color: #fff; border-color: #3266d5; background: #3266d5; }
@@ -1729,11 +1863,15 @@ system:
             </div>
             <aside id="dba-panel" data-open="false" aria-label="豆包助手工作台">
                 <header class="dba-head">
-                    <div class="dba-brand"><div class="dba-title">豆包助手</div><div class="dba-summary">素材工作台</div></div>
+                    <div class="dba-brand"><div class="dba-title">豆包助手</div><div class="dba-summary">${isThreadPage ? '分享素材工作台' : '对话素材工作台'}</div></div>
                     <button class="dba-icon-btn" data-action="refresh" title="重新获取素材" aria-label="重新获取素材">${icon('refresh')}</button>
                     <button class="dba-icon-btn" data-action="close" title="关闭" aria-label="关闭">${icon('close')}</button>
                 </header>
-                <section class="dba-seedance">
+                <section class="dba-share-info" ${isThreadPage ? '' : 'hidden'} aria-label="分享信息">
+                    <div class="dba-share-avatar">享</div>
+                    <div><div class="dba-share-title">正在读取分享信息...</div><div class="dba-share-meta">请稍候</div></div>
+                </section>
+                <section class="dba-seedance" ${isThreadPage ? 'hidden' : ''}>
                     <div class="dba-seedance-label">${icon('sparkles')} Seedance</div>
                     <label class="dba-toggle" title="开启后启用 15 秒视频增强">
                         <input type="checkbox" data-action="seedance-toggle" aria-label="启用 Seedance 15 秒增强">
@@ -1766,6 +1904,7 @@ system:
         const operationLoading = root.querySelector('.dba-operation-loading');
         const toast = root.querySelector('.dba-toast');
         const preview = root.querySelector('#dba-preview');
+        const shareInfoElement = root.querySelector('.dba-share-info');
         let activeTab = 'image';
         let images = [];
         let videos = [];
@@ -1783,6 +1922,35 @@ system:
             toast.textContent = message;
             toast.classList.add('show');
             toastTimer = setTimeout(() => toast.classList.remove('show'), 1800);
+        };
+        const renderLoading = (message) => {
+            list.innerHTML = `<div class="dba-empty dba-empty-loading">${icon('refresh')}<strong>${escapeAttr(message)}</strong><span>分享视频解析可能需要几秒钟</span></div>`;
+            status.textContent = message;
+        };
+        const renderShareInfo = (shareInfo) => {
+            if (!isThreadPage || !shareInfo) return;
+            const avatar = shareInfoElement.querySelector('.dba-share-avatar');
+            const title = shareInfoElement.querySelector('.dba-share-title');
+            const meta = shareInfoElement.querySelector('.dba-share-meta');
+            title.textContent = shareInfo.title || '未命名分享';
+            const sharedAt = shareInfo.sharedAt > 0 && shareInfo.sharedAt < 1e12
+                ? shareInfo.sharedAt * 1000
+                : shareInfo.sharedAt;
+            const timestamp = sharedAt > 0
+                ? new Date(sharedAt).toLocaleString('zh-CN', { hour12: false })
+                : '';
+            meta.textContent = [shareInfo.author ? `作者：${shareInfo.author}` : '', timestamp ? `分享于 ${timestamp}` : '']
+                .filter(Boolean).join(' · ') || '分享信息不可用';
+            avatar.innerHTML = shareInfo.avatar
+                ? `<img src="${escapeAttr(shareInfo.avatar)}" alt="" referrerpolicy="no-referrer">`
+                : escapeAttr((shareInfo.author || shareInfo.title || '享').slice(0, 1));
+        };
+        const getRefreshErrorMessage = (error) => {
+            const message = String(error?.message || '未知错误');
+            if (message.includes('失效') || message.includes('取消') || message.includes('不可用')) return message;
+            if (message.includes('超时')) return '获取超时，请检查网络后重试';
+            if (message.includes('Failed to fetch') || message.includes('网络')) return '网络请求失败，请检查连接后重试';
+            return `素材获取失败：${message}`;
         };
         const updateSelection = (message = '') => {
             const count = selectedInputs().length;
@@ -1880,11 +2048,16 @@ system:
             status.textContent = '正在获取当前页面素材...';
             list.setAttribute('aria-busy', 'true');
             list.classList.add('loading');
+            renderLoading(isThreadPage ? '正在读取分享内容...' : '正在获取当前页面素材...');
             await new Promise(resolve => requestAnimationFrame(resolve));
 
             try {
-                images = extractImages();
+                const shareResult = isThreadPage
+                    ? await extractSharePageMedia(renderLoading)
+                    : null;
+                images = shareResult ? shareResult.images : extractImages();
                 videos = extractVideos();
+                if (shareResult) renderShareInfo(shareResult.shareInfo);
                 root.querySelector('[data-count="image"]').textContent = images.length;
                 root.querySelector('[data-count="video"]').textContent = videos.length;
                 if (!getItems(activeTab).length && getItems(activeTab === 'image' ? 'video' : 'image').length) {
@@ -1892,12 +2065,23 @@ system:
                 }
                 render();
                 const total = images.length + videos.length;
-                status.textContent = total
-                    ? `已获取 ${images.length} 张图片、${videos.length} 个视频`
-                    : '当前页面暂未获取到素材';
+                if (shareResult?.failedVideoCount && !total && shareResult.detectedVideoCount) {
+                    status.textContent = '视频地址解析失败，请点击刷新重试';
+                } else if (shareResult?.failedVideoCount) {
+                    status.textContent = `已获取 ${total} 项素材，另有 ${shareResult.failedVideoCount} 个视频解析失败`;
+                } else if (total) {
+                    status.textContent = `已获取 ${images.length} 张图片、${videos.length} 个视频`;
+                } else {
+                    status.textContent = isThreadPage
+                        ? '该分享没有可提取的图片或视频'
+                        : '当前页面暂未获取到素材';
+                }
             } catch (error) {
-                status.textContent = '素材获取失败，请稍后重试';
+                const message = getRefreshErrorMessage(error);
+                list.innerHTML = `<div class="dba-empty">${icon('refresh')}<strong>${escapeAttr(message)}</strong><span>点击右上角刷新按钮可重新尝试</span></div>`;
+                status.textContent = message;
             } finally {
+                mediaProgressReporter = null;
                 const remainingDelay = 450 - (Date.now() - startedAt);
                 if (remainingDelay > 0) {
                     await new Promise(resolve => setTimeout(resolve, remainingDelay));
@@ -2250,7 +2434,7 @@ system:
     }
 
     function initScript() {
-        if (isDoubaoPage()) {
+        if (isDoubaoPage() && pageWindow.location.pathname.includes('/chat/')) {
             startDurationMenuObserver();
             if (seedanceTargetDuration === 15) {
                 patchDurationTriggerLabels();

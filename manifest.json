@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "豆包助手",
   "short_name": "豆包助手",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "豆包与 Dola 素材提取、Seedance 增强及豆包账号管理工具。",
   "icons": {
     "16": "icon/favicon-16x16.png",
@@ -33,8 +33,12 @@
       "matches": [
         "https://www.doubao.com/chat/*",
         "https://*.doubao.com/chat/*",
+        "https://www.doubao.com/thread/*",
+        "https://*.doubao.com/thread/*",
         "https://www.dola.com/chat/*",
-        "https://*.dola.com/chat/*"
+        "https://*.dola.com/chat/*",
+        "https://www.dola.com/thread/*",
+        "https://*.dola.com/thread/*"
       ],
       "js": ["doubao-assistant.js"],
       "world": "MAIN",
